@@ -1,0 +1,137 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Moderate Light: cool slate-blue tinted, professional, not harsh ── */
+:root {
+  --bg:         #EDF0F7;   /* Cool slate-blue page bg — not pure white, not dark */
+  --sidebar:    #FFFFFF;   /* Pure white sidebar */
+  --surface:    #FFFFFF;   /* Card surface */
+  --surface-2:  #F5F7FC;   /* Hover / elevated surface */
+  --border:     #E2E6F0;   /* Subtle border */
+  --border-2:   #C8D0E8;   /* Focus / hover border */
+  --text:       #1A1F36;   /* Deep navy — professional, not stark black */
+  --text-2:     #5A6585;   /* Muted state text */
+  --text-3:     #9AA3BD;   /* Placeholder / disabled */
+  --accent:     #6366F1;   /* Indigo-500 */
+  --accent-dk:  #4F46E5;   /* Deeper indigo for button bg */
+  --accent-dim: rgba(99, 102, 241, 0.10);
+  --accent-glow: rgba(99, 102, 241, 0.20);
+  --green:      #059669;   /* emerald-600 */
+  --amber:      #D97706;   /* amber-600 */
+  --red:        #DC2626;   /* red-600 */
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+*::-webkit-scrollbar { width: 4px; height: 4px; }
+*::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+html, body {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(30, 35, 60, 0.06);
+  }
+  .card-hover {
+    transition: all 0.18s ease;
+    cursor: pointer;
+  }
+  .card-hover:hover {
+    background: var(--surface-2);
+    border-color: var(--border-2);
+    box-shadow: 0 4px 16px rgba(30, 35, 60, 0.09);
+  }
+
+  /* ── Buttons ── */
+  .btn { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-150 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed; }
+  .btn-primary {
+    background: var(--accent-dk);
+    color: #fff;
+    box-shadow: 0 2px 10px var(--accent-glow);
+    @apply btn;
+  }
+  .btn-primary:hover { background: #4338CA; }
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 2px rgba(30,35,60,0.05);
+    @apply btn;
+  }
+  .btn-secondary:hover { background: var(--surface-2); border-color: var(--border-2); }
+  .btn-ghost {
+    color: var(--text-2);
+    @apply btn;
+  }
+  .btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+
+  /* ── Input ── */
+  .input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: all 0.18s;
+    font-family: inherit;
+  }
+  .input::placeholder { color: var(--text-3); }
+  .input:focus {
+    background: var(--surface);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+
+  /* ── Typography ── */
+  .label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .badge { @apply inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full; }
+
+  /* ── Sidebar nav ── */
+  .nav-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-radius: 10px;
+    font-size: 13px; font-weight: 500; color: var(--text-2);
+    transition: all 0.15s; cursor: pointer;
+  }
+  .nav-link:hover { background: var(--bg); color: var(--text); }
+  .nav-link-active {
+    background: var(--accent-dim) !important;
+    color: var(--accent) !important;
+    font-weight: 600;
+  }
+
+  /* ── Progress ── */
+  .progress-track { height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .progress-fill  { height: 100%; background: var(--accent); border-radius: 99px; transition: width 0.7s ease-out; }
+
+  /* ── Divider ── */
+  .divider { border-top: 1px solid var(--border); }
+
+  /* ── Utilities ── */
+  .backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+}
