@@ -386,7 +386,7 @@ export const Session = () => {
             <div className="w-full h-full p-4 lg:p-6 bg-zinc-950">
               <LiveKitSession 
                 scenarioId={scenarioId} 
-                maxTurns={isPlayground ? 5 : undefined}
+                maxMinutes={isPlayground ? 5 : undefined}
                 onEnd={() => { 
                   setMode("chat"); 
                   if (!isEnding) endSession(); 

@@ -120,7 +120,7 @@ const AgentVisualizer = ({ scenarioId, onEnd, maxMinutes }: { scenarioId: string
               <p className="text-zinc-500 uppercase tracking-[0.2em] text-xs font-semibold animate-pulse">
                 {state === "listening" ? "Listening..." :
                  state === "speaking" ? "AI is speaking" : 
-                 state === "processing" ? "Processing..." : 
+                 state === "thinking" ? "Processing..." : 
                  state === "disconnected" ? "Agent Offline" :
                  "Connecting"}
               </p>
