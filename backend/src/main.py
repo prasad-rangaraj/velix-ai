@@ -17,6 +17,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:3000",
+        "https://velixai.onrender.com",
+        "https://velix-ai.onrender.com",
         os.getenv("FRONTEND_URL", "https://yourplaceholder.onrender.com"),
     ],
     allow_origin_regex=r"https://.*\.onrender\.com",
