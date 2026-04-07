@@ -2,8 +2,7 @@ import os
 import asyncio
 from dotenv import load_dotenv
 
-from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm
-from livekit.agents.voice import Agent as VoicePipelineAgent
+from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm, voice
 from livekit.plugins import silero, openai, cartesia
 
 load_dotenv()
@@ -40,22 +39,27 @@ async def entrypoint(ctx: JobContext):
         voice="6ccbfb76-1fc6-48f7-b71d-91ac6298247b"
     )
 
-    # Initialize the VoicePipelineAgent which handles the intricate logic of STT -> LLM -> TTS + WebRTC Transport natively
+    # Initialize the Voice Agent configuration
     prompt = "You are a highly professional English communication coach running a realistic audio practice simulation. Keep your responses extremely conversational, natural, and concise (under 2 sentences). Never use markdown, lists, or emojis because your output is being streamed directly to a speech synthesizer."
     
-    agent = VoicePipelineAgent(
-        vad=vad,
-        stt=stt,
-        llm=language_model,
-        tts=tts,
+    agent = voice.Agent(
         instructions=prompt,
     )
 
-    agent.start(ctx.room)
+    # In LiveKit 1.x, we use AgentSession to manage the pipeline
+    session = voice.AgentSession(
+        stt=stt,
+        vad=vad,
+        llm=language_model,
+        tts=tts,
+    )
+
+    # Start the session with the defined agent
+    await session.start(agent, room=ctx.room)
 
     # Greeting
     await asyncio.sleep(1)
-    await agent.say("Hi there! I'm completely connected to the LiveKit audio stream. Whenever you're ready, let me know what communication scenario we are focusing on today.", allow_interruptions=True)
+    await session.say("Hi there! I'm completely connected to the LiveKit audio stream. Whenever you're ready, let me know what communication scenario we are focusing on today.", allow_interruptions=True)
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))

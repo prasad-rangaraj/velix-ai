@@ -36,9 +36,8 @@ const ALL_PRIVATE = [
 export const AppRouter = () => (
   <BrowserRouter>
     <Routes>
-      {/* Public */}
       <Route path={ROUTES.LOGIN}        element={<PublicRoute><Login /></PublicRoute>} />
-      <Route path="/register"           element={<PublicRoute><Register /></PublicRoute>} />
+      <Route path="/register"           element={<Register />} />
       <Route path="/onboarding/:page"   element={<Onboarding />} />
       <Route path="/playground"         element={<Playground />} />
 

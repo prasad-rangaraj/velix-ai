@@ -1,7 +1,7 @@
-import resend
 import random
 import string
 import os
+from ..services.email_service import email_service
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -14,12 +14,11 @@ import secrets
 
 router = APIRouter()
 
-# ── In-memory OTP store (replace with Redis in full production) ───────────────
+# In-memory OTP store (replace with Redis in full production) ───────────────
 _otp_store: dict[str, str] = {}  # email → otp_code
 
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "re_3g6fT9ZR_Crsw8tWnoKFtQWLeSzYj9dMP")
-resend.api_key = RESEND_API_KEY
-FROM_EMAIL = "VelixAI <onboarding@resend.dev>"
+FROM_EMAIL = os.getenv("FROM_EMAIL", "onboarding@velixai.com")
+FROM_NAME = os.getenv("FROM_NAME", "VelixAI")
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 class AnonymousReq(BaseModel):
@@ -82,13 +81,9 @@ async def send_otp(req: SendOTPReq, db: AsyncSession = Depends(get_db)):
     otp = "".join(random.choices(string.digits, k=6))
     _otp_store[req.email] = otp
 
-    # Send via Resend
+    # Send via Brevo
     try:
-        resend.Emails.send({
-            "from": FROM_EMAIL,
-            "to": [req.email],
-            "subject": "Your VelixAI verification code",
-            "html": f"""
+        html_content = f"""
             <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 24px; background: #0F1117; color: #E8E5E0; border-radius: 16px;">
               <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 32px;">
                 <div style="width: 36px; height: 36px; border-radius: 10px; background: #6366F1; display: flex; align-items: center; justify-content: center; font-size: 18px;">🎙️</div>
@@ -106,10 +101,16 @@ async def send_otp(req: SendOTPReq, db: AsyncSession = Depends(get_db)):
                 Never share this code with anyone.
               </p>
             </div>
-            """,
-        })
+            """
+        await email_service.send_transactional_email(
+            to_email=req.email,
+            to_name=req.full_name,
+            subject="Your VelixAI verification code",
+            html_content=html_content
+        )
     except Exception as e:
         # Fallback: still let through in dev (log the OTP)
+        print(f"[ERROR] Failed to send email via Brevo: {e}")
         print(f"[DEV] OTP for {req.email}: {otp}")
 
     return {"message": "OTP sent to your email address."}

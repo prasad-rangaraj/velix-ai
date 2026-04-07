@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   ArrowRight, ArrowLeft, Check, Loader2,
   Mail, Lock, User, ShieldCheck,
+  Eye, EyeOff,
 } from "lucide-react";
 
 const perks = [
@@ -26,6 +27,8 @@ export const Register = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -200,9 +203,16 @@ export const Register = () => {
                   <div className="relative">
                     <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--text-3)", pointerEvents: "none" }} />
                     <input
-                      type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Min. 8 characters" className="input pl-9" required
+                      type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Min. 8 characters" className="input pl-9 pr-10" required
                     />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
                   </div>
                 </div>
 
@@ -211,9 +221,16 @@ export const Register = () => {
                   <div className="relative">
                     <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--text-3)", pointerEvents: "none" }} />
                     <input
-                      type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="••••••••" className="input pl-9" required
+                      type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••" className="input pl-9 pr-10" required
                     />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 transition-colors"
+                    >
+                      {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
                   </div>
                 </div>
               </div>
