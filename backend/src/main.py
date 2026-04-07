@@ -1,6 +1,8 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from .api import auth, user, practice, progress, vocabulary, journal, chat
 from .api import conference, debate, interview, anxiety, patterns, culture, dashboard, rtc
@@ -43,6 +45,27 @@ app.include_router(patterns.router,    prefix="/api/patterns",     tags=["Patter
 app.include_router(culture.router,     prefix="/api/culture",      tags=["Culture"])
 app.include_router(rtc.router,         prefix="/api/rtc",         tags=["RTC"])
 app.include_router(chat.router,        prefix="/api/chat",        tags=["Chat"])
+
+# ── Static Files (Production) ────────────────────────────────────────────────
+# Path to built frontend (adjust if Render build script puts it elsewhere)
+FRONTEND_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))), "frontend", "dist")
+
+if os.path.exists(FRONTEND_PATH):
+    # Serve assets folder
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_PATH, "assets")), name="static")
+
+    # Serve index.html for all other routes (React Routing)
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Skip API routes and existing static files
+        if full_path.startswith("api") or full_path.startswith("docs") or full_path.startswith("openapi.json"):
+            return None # FastAPI will continue to routers
+        
+        target = os.path.join(FRONTEND_PATH, full_path)
+        if os.path.exists(target) and os.path.isfile(target):
+            return FileResponse(target)
+            
+        return FileResponse(os.path.join(FRONTEND_PATH, "index.html"))
 
 @app.get("/health")
 async def health():
