@@ -113,6 +113,8 @@ async def send_otp(req: SendOTPReq, db: AsyncSession = Depends(get_db)):
         print(f"[ERROR] Failed to send email via Brevo: {e}")
         print(f"[DEV] OTP for {req.email}: {otp}")
 
+
+
     return {"message": "OTP sent to your email address."}
 
 @router.post("/verify-otp", response_model=TokenRes)
