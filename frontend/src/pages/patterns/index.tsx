@@ -58,17 +58,38 @@ const chartOpts = (max?: number) => ({
 });
 
 export const Patterns = () => {
-  const { patterns, isLoading, fetchPatterns } = usePatternsStore();
+  const { patterns, isLoading, error, fetchPatterns } = usePatternsStore();
 
   useEffect(() => {
     fetchPatterns();
   }, [fetchPatterns]);
 
-  if (isLoading || !patterns) {
+  if (isLoading) {
     return (
       <SidebarLayout>
         <div className="flex items-center justify-center h-full text-[var(--text-3)] text-sm gap-2">
           <Loader2 size={16} className="animate-spin" /> Loading communication patterns...
+        </div>
+      </SidebarLayout>
+    );
+  }
+
+  if (error || !patterns) {
+    return (
+      <SidebarLayout>
+        <div className="flex flex-col items-center justify-center h-full text-center p-6">
+          <div className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 mb-4 text-xl">⚠️</div>
+          <h3 className="text-lg font-bold mb-2">Failed to Load Patterns</h3>
+          <p className="text-[var(--text-3)] text-sm max-w-sm mb-6">
+            {error || "We couldn't retrieve your communication data. This might happen if you haven't completed any sessions yet."}
+          </p>
+          <button 
+            onClick={() => fetchPatterns()}
+            className="px-6 py-2.5 rounded-xl font-semibold text-sm transition-all"
+            style={{ background: "var(--accent)", color: "white" }}
+          >
+            Try Again
+          </button>
         </div>
       </SidebarLayout>
     );

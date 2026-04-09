@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Mic, MicOff, PhoneOff, Headphones, Clock, Wifi, ArrowRight } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
@@ -13,9 +13,28 @@ export const Playground = () => {
   const [error, setError] = useState<string | null>(null);
   const [reportData, setReportData] = useState<any>(null);
 
-  const { setToken } = useAuthStore();
+  const { setToken, logout } = useAuthStore();
   // Using a static session ID placeholder for playground tracking
   const sessionIdRef = useRef<number | null>(null);
+  const originalTokenRef = useRef<string | null>(null);
+  const isGuestSessionRef = useRef(false);
+
+  useEffect(() => {
+    // Save original auth token when user enters
+    originalTokenRef.current = useAuthStore.getState().token;
+
+    return () => {
+      // Cleanup: If a guest session was created, remove it on exit
+      if (isGuestSessionRef.current) {
+        const original = originalTokenRef.current;
+        if (original) {
+          useAuthStore.getState().setToken(original);
+        } else {
+          useAuthStore.getState().logout();
+        }
+      }
+    };
+  }, []);
 
   const startSession = useCallback(async () => {
     setError(null);
@@ -31,6 +50,7 @@ export const Playground = () => {
       const { data } = await api.POST<any>("/api/auth/guest");
       if (!data || !data.access_token) throw new Error("Failed to create guest session");
       
+      isGuestSessionRef.current = true;
       setToken(data.access_token);
       
       // Initialize an empty playground session object on the backend

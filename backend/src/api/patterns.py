@@ -22,8 +22,8 @@ async def get_patterns(user: User = Depends(get_current_user), db: AsyncSession 
             .order_by(SessionReport.id)
         )
         reports = r2.scalars().all()
-        filler_rate = sum(rep.filler_count for rep in reports) / max(len(reports), 1)
-        assertiveness = round(user.skill_confidence * 0.7 + user.skill_fluency * 0.3)
+        filler_rate = sum(rep.filler_count or 0 for rep in reports) / max(len(reports), 1)
+        assertiveness = round((user.skill_confidence or 0.0) * 0.7 + (user.skill_fluency or 0.0) * 0.3)
         pattern = CommunicationPattern(
             user_id=user.id,
             overall_filler_rate=round(filler_rate, 2),
