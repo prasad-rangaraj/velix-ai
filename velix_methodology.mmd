@@ -1,0 +1,26 @@
+graph TD
+    A[User Setup/Onboarding] --> B{Choose Session Type}
+    B -->|Practice Scenario| C[Select Predefined Situation]
+    B -->|Debate Arena| D[Choose Impromptu Topic]
+    B -->|Mock Interview| E[Upload Job Description]
+    C --> F[Initialize WebRTC Client]
+    D --> F
+    E --> F
+    F --> G((LiveKit WebRTC Server))
+    
+    subgraph AI_Processing [AI Processing Pipeline]
+        G <-->|Audio Stream| H[Whisper STT: Fast Transcription]
+        H --> I[Llama-3 70B: Conversational Inference]
+        I --> J[Cartesia Sonic-3: TTS Synthesized Voice]
+        J -->|Audio Response| G
+    end
+    
+    G -->|Session Ended| K[Data Aggregation]
+    K --> L[Extract Telemetry: WPM, Hesitations, Filters]
+    K --> M[Update Spaced-Repetition Vocabulary]
+    K --> N[Analyze Emotional Sentiment]
+    
+    L --> O[Generate Performance Report Dashboard]
+    M --> O
+    N --> O
+    O --> P(((User Review & Feedback)))

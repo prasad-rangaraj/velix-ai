@@ -13,11 +13,13 @@ import { api } from "@/utils";
 export const LiveKitSession = ({ 
   scenarioId, 
   onEnd,
-  maxMinutes
+  maxMinutes,
+  dbSessionId
 }: { 
   scenarioId: string, 
   onEnd: () => void,
-  maxMinutes?: number
+  maxMinutes?: number,
+  dbSessionId?: number
 }) => {
   const [token, setToken] = useState<string>("");
   const livekitUrl = (import.meta as any).env?.VITE_LIVEKIT_URL || "wss://human-ai-16pkp4sz.livekit.cloud";
@@ -25,7 +27,7 @@ export const LiveKitSession = ({
 
   useEffect(() => {
     // Generate a unique room ID for this practice session
-    const roomId = `${scenarioId}-${Date.now()}`;
+    const roomId = dbSessionId ? `${scenarioId}-db_${dbSessionId}` : `${scenarioId}-${Date.now()}`;
     
     // Fetch secure JWT Auth Token from our FastAPI backend
     const fetchToken = async () => {

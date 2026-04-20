@@ -7,6 +7,7 @@ from .deps import get_current_user
 
 router = APIRouter()
 
+@router.get("")
 @router.get("/")
 async def get_patterns(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     # Return existing snapshot or compute from session reports

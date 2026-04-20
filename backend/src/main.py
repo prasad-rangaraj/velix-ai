@@ -57,14 +57,16 @@ if os.path.exists(FRONTEND_PATH):
     # Serve index.html for all other routes (React Routing)
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        # Skip API routes and existing static files
-        if full_path.startswith("api") or full_path.startswith("docs") or full_path.startswith("openapi.json"):
-            return None # FastAPI will continue to routers
-        
+        from fastapi import HTTPException as _HTTPException
+        # Let the API, docs, and openapi routes fall through to FastAPI routers
+        if (full_path.startswith("api/") or full_path == "api"
+                or full_path.startswith("docs") or full_path.startswith("openapi.json")):
+            raise _HTTPException(status_code=404, detail="Not Found")
+
         target = os.path.join(FRONTEND_PATH, full_path)
         if os.path.exists(target) and os.path.isfile(target):
             return FileResponse(target)
-            
+
         return FileResponse(os.path.join(FRONTEND_PATH, "index.html"))
 
 @app.get("/health")

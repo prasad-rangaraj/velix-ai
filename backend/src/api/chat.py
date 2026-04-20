@@ -75,7 +75,7 @@ class ChatReq(BaseModel):
 class ScoreReq(BaseModel):
     scenario_id: Optional[str] = None
     transcript: List[Message]  # complete transcript to score
-
+    session_id: Optional[int] = None
 
 @router.post("/chat")
 async def ai_chat(req: ChatReq, user: User = Depends(get_current_user)):
@@ -116,13 +116,25 @@ async def ai_chat(req: ChatReq, user: User = Depends(get_current_user)):
         raise HTTPException(500, f"AI service error: {str(e)}")
 
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from .deps import get_db
+from ..models.practice import ConversationTurn
+
 @router.post("/score")
-async def score_session(req: ScoreReq, user: User = Depends(get_current_user)):
+async def score_session(req: ScoreReq, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """Analyze a completed transcript and produce skill scores + feedback items using Groq."""
     import json
-    if not _groq_key() or len(req.transcript) < 2:
+    
+    actual_transcript = list(req.transcript)
+    if not actual_transcript and req.session_id:
+        result = await db.execute(select(ConversationTurn).where(ConversationTurn.practice_session_id == req.session_id).order_by(ConversationTurn.id))
+        turns = result.scalars().all()
+        actual_transcript = [Message(role=t.speaker, content=t.transcript) for t in turns]
+
+    if not _groq_key() or len(actual_transcript) < 2:
         # Graceful heuristic fallback if API key is missing
-        user_turns = [m for m in req.transcript if m.role == "user"]
+        user_turns = [m for m in actual_transcript if m.role == "user"]
         total_words = sum(len(t.content.split()) for t in user_turns)
         avg_len = total_words / max(len(user_turns), 1)
         fluency = min(95, 55 + min(avg_len, 30))
@@ -160,7 +172,7 @@ Required JSON format:
 (Note: For vocabulary_saved, ALWAYS extract at least 1-3 useful or interesting vocabulary words from the session to help the user learn. Even for short sessions, pick out foundational words to review.)
 """
     
-    transcript_text = "\\n".join([f"{msg.role.capitalize()}: {msg.content}" for msg in req.transcript])
+    transcript_text = "\\n".join([f"{msg.role.capitalize()}: {msg.content}" for msg in actual_transcript])
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": f"Please evaluate this transcript:\\n\\n{transcript_text}"}
@@ -199,7 +211,7 @@ Required JSON format:
     client = AsyncGroq(api_key=_groq_key())
     transcript_text = "\n".join(
         f"{'User' if m.role == 'user' else 'AI'}: {m.content}"
-        for m in req.transcript
+        for m in actual_transcript
     )
 
     score_prompt = f"""

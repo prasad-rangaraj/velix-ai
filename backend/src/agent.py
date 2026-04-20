@@ -57,6 +57,67 @@ async def entrypoint(ctx: JobContext):
     # Start the session with the defined agent
     await session.start(agent, room=ctx.room)
 
+    # Database sync background task
+    db_session_id = None
+    if "-db_" in ctx.room.name:
+        try:
+            db_session_id = int(ctx.room.name.split("-db_")[1])
+        except ValueError:
+            pass
+
+    async def save_transcript_loop():
+        if not db_session_id:
+            return
+            
+        import sys
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if backend_dir not in sys.path:
+            sys.path.append(backend_dir)
+            
+        try:
+            from src.database import AsyncSessionLocal
+            from src.models.practice import ConversationTurn
+        except ImportError:
+            print("Could not import DB for transcript saving.")
+            return
+
+        last_index = 0
+        while ctx.room.isconnected():
+            await asyncio.sleep(2)
+            try:
+                ctx_to_check = getattr(session, 'chat_ctx', getattr(agent, 'chat_ctx', None))
+                if ctx_to_check and hasattr(ctx_to_check, 'messages'):
+                    messages = ctx_to_check.messages
+                    if len(messages) > last_index:
+                        new_msgs = messages[last_index:]
+                        last_index = len(messages)
+                        
+                        async with AsyncSessionLocal() as db:
+                            for msg in new_msgs:
+                                if msg.role in ["user", "assistant"]:
+                                    text_content = ""
+                                    if isinstance(msg.content, str):
+                                        text_content = msg.content
+                                    elif isinstance(msg.content, list):
+                                        text_content = " ".join([c for c in msg.content if isinstance(c, str)])
+                                    elif hasattr(msg, "text"):
+                                        text_content = getattr(msg, "text")
+                                    else:
+                                        text_content = str(msg.content)
+                                        
+                                    if text_content.strip():
+                                        turn = ConversationTurn(
+                                            practice_session_id=db_session_id,
+                                            speaker=msg.role,
+                                            transcript=text_content
+                                        )
+                                        db.add(turn)
+                            await db.commit()
+            except Exception as e:
+                print(f"Error syncing transcript: {e}")
+
+    asyncio.create_task(save_transcript_loop())
+
     # Greeting
     await asyncio.sleep(1)
     await session.say("Hi there! I'm completely connected to the LiveKit audio stream. Whenever you're ready, let me know what communication scenario we are focusing on today.", allow_interruptions=True)

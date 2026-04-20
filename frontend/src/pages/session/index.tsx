@@ -1,13 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { SidebarLayout } from "@/layouts/SidebarLayout";
-import { Send, PhoneOff, Lightbulb, Loader2, RotateCcw, Mic, Volume2 } from "lucide-react";
+import { PhoneOff, Lightbulb, Loader2, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/utils";
 import { LiveKitSession } from "./LiveKitSession";
 import { useProfileStore } from "@/store";
-
-interface Message { role: "user" | "assistant"; content: string; }
 
 const COACHING_TIPS: Record<string, { icon: string; title: string; body: string }[]> = {
   "job-interview": [
@@ -48,18 +46,11 @@ export const Session = () => {
   const scenarioId: string = (location.state as any)?.scenarioId ?? "job-interview";
   const customPrompt: string | undefined = (location.state as any)?.customPrompt;
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
   const isPlayground = searchParams.get("playground") === "true";
-  const [isLoading, setIsLoading] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
   const [duration, setDuration] = useState(0);
   const [activeTip, setActiveTip] = useState(0);
   const [sessionStarted, setSessionStarted] = useState(false);
-  const [mode, setMode] = useState<"chat" | "call">("chat");
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [voiceText, setVoiceText] = useState("");
 
   const { profile, fetchProfile } = useProfileStore();
   const dailyGoalSeconds = (profile?.daily_goal_minutes || 15) * 60;
@@ -78,118 +69,19 @@ export const Session = () => {
   }, [profile?.daily_goal_minutes, sessionStarted]);
 
   const sessionIdRef = useRef<number | null>(null);
-  const transcriptEndRef = useRef<HTMLDivElement | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tipRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recognitionRef = useRef<any>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
   const startTimeRef = useRef<number | null>(null);
 
-  // Use a ref to break circular dependencies between callbacks
+  // Use a ref to break circular dependencies for interval cleanup
   const actionsRef = useRef({
-    sendMessage: async (text?: string) => {},
-    startListening: () => {},
     endSession: () => {},
   });
 
-  const tips = COACHING_TIPS[scenarioId] ?? COACHING_TIPS.default;
   const title = SCENARIO_TITLES[scenarioId] ?? "Practice Session";
+  const tips = COACHING_TIPS[scenarioId] ?? COACHING_TIPS.default;
 
-  const speakText = useCallback((text: string) => {
-    if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.95;
-    
-    // Pick an English voice if available
-    const voices = window.speechSynthesis.getVoices();
-    const enVoice = voices.find(v => v.lang.startsWith("en-US") || v.lang.startsWith("en-GB"));
-    if (enVoice) utterance.voice = enVoice;
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      // Auto start listening after AI finishes speaking in voice mode
-      if (mode === "call") actionsRef.current.startListening();
-    };
-    window.speechSynthesis.speak(utterance);
-  }, [mode]);
-
-  const startListening = useCallback(() => {
-    const SpeechR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechR) {
-      alert("Voice recognition is not supported in your browser, or you are not using HTTPS/localhost. Please switch back to Text Chat.");
-      return;
-    }
-
-    try {
-      try {
-        if (recognitionRef.current) {
-          recognitionRef.current.onend = null;
-          recognitionRef.current.onerror = null;
-          recognitionRef.current.abort();
-        }
-      } catch (e) {}
-
-      const rc = new SpeechR();
-      rc.continuous = true;
-      rc.interimResults = true;
-      rc.lang = "en-US";
-      
-      let fullTranscript = "";
-      
-      rc.onstart = () => { setIsListening(true); setVoiceText(""); fullTranscript = ""; };
-      rc.onresult = (e: any) => {
-        let currentInterim = "";
-        let currentFinal = "";
-        for (let i = e.resultIndex; i < e.results.length; ++i) {
-          if (e.results[i].isFinal) currentFinal += e.results[i][0].transcript + " ";
-          else currentInterim += e.results[i][0].transcript;
-        }
-        fullTranscript += currentFinal;
-        setVoiceText(fullTranscript + currentInterim);
-      };
-      
-      rc.onerror = (e: any) => {
-        console.error("Speech recognition error:", e.error);
-        if (e.error === 'not-allowed') {
-          alert("Microphone access was denied. Please allow microphone access in your browser settings.");
-        } else if (e.error === 'network') {
-          alert("Network Error: Your browser cannot connect to the actual Speech-to-Text servers. If using Brave or Chromium on Linux, this feature may be blocked by default.");
-        } else {
-          alert(`Speech API Error: ${e.error}. The microphone stopped unexpectedly.`);
-        }
-        setIsListening(false);
-      };
-
-      rc.onend = () => {
-        setIsListening(false);
-        const finalPayload = fullTranscript.trim();
-        if (finalPayload) {
-          actionsRef.current.sendMessage(finalPayload);
-          setVoiceText("");
-        }
-      };
-      rc.start();
-      recognitionRef.current = rc;
-    } catch (e) {
-      console.error("Speech recognition start error", e);
-      setIsListening(false);
-    }
-  }, []);
-
-  // Make sure voices are loaded early
-  useEffect(() => {
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.getVoices();
-    }
-  }, []);
-
-  useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
-
-  // Create DB session and get initial AI greeting on mount
+  // Create DB session on mount
   useEffect(() => {
     let isCancelled = false;
     const init = async () => {
@@ -202,108 +94,54 @@ export const Session = () => {
         sessionIdRef.current = data.session_id;
       } catch {}
 
-      try {
-        setIsLoading(true);
-        const { data: chatData } = await api.POST<any>("/api/chat/chat", {
-          scenario_id: scenarioId,
-          custom_prompt: customPrompt,
-          messages: [],
+      if (isCancelled) return;
+      setSessionStarted(true);
+      startTimeRef.current = Date.now();
+      
+      intervalRef.current = setInterval(() => {
+        setDuration((d) => d + 1);
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            actionsRef.current.endSession();
+            return 0;
+          }
+          return prev - 1;
         });
-        if (isCancelled) return;
-        const opening: Message = { role: "assistant", content: chatData.reply };
-        setMessages([opening]);
-        saveTurn("ai", opening.content);
-        if (mode === "call") speakText(opening.content);
-      } catch {
-        if (isCancelled) return;
-        const fallbackMsg = "Hello! I'm ready to start your practice session. Please begin when you're ready.";
-        setMessages([{ role: "assistant", content: fallbackMsg }]);
-        if (mode === "call") speakText(fallbackMsg);
-      } finally {
-        if (isCancelled) return;
-        setIsLoading(false);
-        setSessionStarted(true);
-        startTimeRef.current = Date.now();
-        intervalRef.current = setInterval(() => {
-          setDuration((d) => d + 1);
-          setTimeLeft((prev) => {
-            if (prev <= 1) {
-              actionsRef.current.endSession();
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-        tipRef.current = setInterval(() => setActiveTip((t) => (t + 1) % tips.length), 15000);
-      }
+      }, 1000);
+      
+      tipRef.current = setInterval(() => setActiveTip((t) => (t + 1) % tips.length), 15000);
     };
     init();
+    
     return () => {
       isCancelled = true;
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (tipRef.current) clearInterval(tipRef.current);
-      if (recognitionRef.current) recognitionRef.current.stop();
-      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     };
-  }, [mode, speakText, scenarioId, customPrompt]);
-
-  const saveTurn = (speaker: "user" | "ai", text: string) => {
-    if (!sessionIdRef.current) return;
-    api.POST(`/api/practice/sessions/${sessionIdRef.current}/turns`, {
-      speaker, transcript: text,
-    }).catch(() => {});
-  };
-
-  const sendMessage = useCallback(async (overrideText?: string) => {
-    const text = overrideText ?? input.trim();
-    if (!text || isLoading || isEnding) return;
-
-    const userMsg: Message = { role: "user", content: text };
-    const nextMessages = [...messages, userMsg];
-    setMessages(nextMessages);
-    if (!overrideText) setInput("");
-    setIsLoading(true);
-    saveTurn("user", text);
-
-    try {
-      const { data } = await api.POST<any>("/api/chat/chat", {
-        scenario_id: scenarioId,
-        custom_prompt: customPrompt,
-        messages: nextMessages,
-      });
-      const aiMsg: Message = { role: "assistant", content: data.reply };
-      setMessages((m) => [...m, aiMsg]);
-      saveTurn("ai", aiMsg.content);
-      if (mode === "call") speakText(aiMsg.content);
-    } catch {
-      const err = "I'm sorry, I had trouble responding. Please try again.";
-      setMessages((m) => [...m, { role: "assistant", content: err }]);
-      if (mode === "call") speakText(err);
-    } finally {
-      setIsLoading(false);
-      inputRef.current?.focus();
-    }
-  }, [input, messages, isLoading, isEnding, scenarioId, customPrompt]);
+  }, [scenarioId, customPrompt]);
 
   const endSession = useCallback(async () => {
     if (isEnding) return;
     setIsEnding(true);
     if (intervalRef.current) clearInterval(intervalRef.current);
     if (tipRef.current) clearInterval(tipRef.current);
-    if (recognitionRef.current) recognitionRef.current.stop();
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
 
     const sid = sessionIdRef.current;
-    if (!sid || messages.length < 2) {
+    if (!sid) {
       navigate("/practice");
       return;
     }
 
+    // Wait 2 seconds so the Python Voice Agent has time to sync the final transcripts to the DB
+    await new Promise(r => setTimeout(r, 2000));
+
     try {
-      // Score the transcript via AI
+      // Score the transcript via AI 
+      // (For voice agent, transcript will be empty here since backend handles WebRTC)
       const { data: scores } = await api.POST<any>("/api/chat/score", {
         scenario_id: scenarioId,
-        transcript: messages.slice(1),
+        transcript: [], 
+        session_id: sid
       });
 
       let calculatedDuration = startTimeRef.current 
@@ -331,11 +169,9 @@ export const Session = () => {
     } catch {
       navigate(`/report/${sid ?? "demo"}`);
     }
-  }, [isEnding, messages, duration, navigate, scenarioId]);
+  }, [isEnding, duration, navigate, scenarioId]);
 
   // Update actionsRef on every render
-  actionsRef.current.sendMessage = sendMessage;
-  actionsRef.current.startListening = startListening;
   actionsRef.current.endSession = endSession;
 
   const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -357,17 +193,6 @@ export const Session = () => {
             <span className="text-sm font-medium" style={{ color: "var(--text-2)" }}>{title}</span>
           </div>
 
-          <div className="flex items-center gap-1 bg-white/50 p-1 rounded-xl shadow-sm border border-[var(--border)]">
-            <button onClick={() => setMode("chat")}
-              className={cn("px-4 py-1.5 text-xs font-semibold rounded-lg transition-all", mode === "chat" ? "bg-indigo-600 text-white shadow-md" : "text-[var(--text-3)] hover:text-[var(--text)]")}>
-              Text Chat
-            </button>
-            <button onClick={() => setMode("call")}
-              className={cn("px-4 py-1.5 text-xs font-semibold rounded-lg transition-all", mode === "call" ? "bg-emerald-600 text-white shadow-md" : "text-[var(--text-3)] hover:text-[var(--text)]")}>
-              Voice Call
-            </button>
-          </div>
-
           <div className="flex items-center gap-4">
             <span className="font-mono text-sm font-semibold tabular-nums" style={{ color: "var(--text-3)" }}>{fmt(timeLeft)}</span>
             <button onClick={endSession} disabled={isEnding}
@@ -382,91 +207,19 @@ export const Session = () => {
         </div>
 
         <div className="flex flex-1 overflow-hidden">
-          {mode === "call" ? (
-            <div className="w-full h-full p-4 lg:p-6 bg-zinc-950">
+          {/* Main Content Area - Full Voice Client */}
+          <div className="flex-1 flex flex-col p-4 lg:p-6 bg-zinc-950 overflow-hidden">
+            {sessionIdRef.current && (
               <LiveKitSession 
                 scenarioId={scenarioId} 
+                dbSessionId={sessionIdRef.current}
                 maxMinutes={isPlayground ? 5 : undefined}
                 onEnd={() => { 
-                  setMode("chat"); 
                   if (!isEnding) endSession(); 
                 }} 
               />
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
-              {messages.map((msg, i) => (
-                <div key={i} className={cn("flex gap-3", msg.role === "user" && "flex-row-reverse")}>
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5"
-                    style={{
-                      background: msg.role === "assistant" ? "var(--accent-dk)" : "var(--bg)",
-                      border: "1px solid var(--border)",
-                      color: msg.role === "assistant" ? "white" : "var(--text-2)",
-                    }}>
-                    {msg.role === "assistant" ? "AI" : "Me"}
-                  </div>
-                  <div className="max-w-[72%] rounded-2xl px-4 py-3 text-sm leading-relaxed"
-                    style={{
-                      background: msg.role === "assistant" ? "var(--surface)" : "linear-gradient(135deg, #6366F1, #818CF8)",
-                      color: msg.role === "assistant" ? "var(--text)" : "white",
-                      border: msg.role === "assistant" ? "1px solid var(--border)" : "none",
-                    }}>
-                    {msg.content}
-                  </div>
-                </div>
-              ))}
-
-              {isLoading && (
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
-                    style={{ background: "var(--accent-dk)", border: "1px solid var(--border)" }}>AI</div>
-                  <div className="rounded-2xl px-4 py-3 flex items-center gap-1.5"
-                    style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
-                    {[0, 1, 2].map((i) => (
-                      <div key={i} className="w-2 h-2 rounded-full animate-bounce"
-                        style={{ background: "var(--text-3)", animationDelay: `${i * 0.15}s` }} />
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div ref={transcriptEndRef} />
-            </div>
-
-            <div className="px-5 py-4 shrink-0" style={{ borderTop: "1px solid var(--border)", background: "var(--surface)" }}>
-                {!sessionStarted ? (
-                  <div className="flex items-center justify-center gap-2 py-2 text-sm" style={{ color: "var(--text-3)" }}>
-                    <Loader2 size={15} className="animate-spin" style={{ pointerEvents: "all" }} />
-                    Starting your session…
-                  </div>
-                ) : (
-                <div className="flex gap-3 items-end">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-                    placeholder="Type your response…"
-                    className="input flex-1"
-                    disabled={isLoading || isEnding}
-                    autoFocus
-                  />
-                  <button
-                    onClick={() => sendMessage()}
-                    disabled={!input.trim() || isLoading || isEnding}
-                    className="btn-primary px-4 py-2.5 text-sm shrink-0"
-                  >
-                    <Send size={14} style={{ pointerEvents: "all" }} />
-                  </button>
-                </div>
-                )}
-                <p className="text-[10px] mt-2 text-center" style={{ color: "var(--text-3)" }}>
-                  Press Enter to send · Click "End &amp; Score" when done to see your full report
-                </p>
-              </div>
+            )}
           </div>
-          )}
 
           {/* Right: Coach Tips */}
           <div className="w-60 shrink-0 flex flex-col" style={{ background: "var(--surface)", borderLeft: "1px solid var(--border)" }}>
