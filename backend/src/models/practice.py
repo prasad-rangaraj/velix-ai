@@ -46,6 +46,7 @@ class SessionReport(Base):
     wpm: Mapped[int] = mapped_column(Integer, nullable=True)             # words per minute
     feedback_items: Mapped[list] = mapped_column(JSONB, default=list)   # [{type, text, fix}]
     vocabulary_saved: Mapped[list] = mapped_column(JSONB, default=list) # new words auto-saved
+    patterns_meta: Mapped[dict] = mapped_column(JSONB, nullable=True)   # per-session talk pattern data
 
     practice_session = relationship("PracticeSession", back_populates="session_report")
 

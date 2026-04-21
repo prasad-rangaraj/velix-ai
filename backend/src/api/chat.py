@@ -167,10 +167,19 @@ Required JSON format:
   "filler_count": int,
   "wpm": int,
   "feedback_items": [{"type": "success" | "warning" | "error", "text": "Short observation", "fix": "Actionable advice"}],
-  "vocabulary_saved": ["word1", "word2"]
+  "vocabulary_saved": ["word1", "word2"],
+  "filler_rate": float,
+  "upspeak_count": int,
+  "sentence_completion_rate": int,
+  "hesitation_pattern": "Behavioural" | "Technical" | "Salary" | "Culture Fit" | "General",
+  "assertiveness_score": int
 }
-(Note: For vocabulary_saved, ALWAYS extract at least 1-3 useful or interesting vocabulary words from the session to help the user learn. Even for short sessions, pick out foundational words to review.)
-"""
+For filler_rate: count filler words (um, uh, like, basically, you know, sort of) per 100 words spoken.
+For upspeak_count: count sentences ending with rising intonation (question-like endings where a statement is expected).
+For sentence_completion_rate: percentage of sentences the user completed without trailing off (0-100).
+For hesitation_pattern: the question/topic category where the user hesitated or struggled most.
+For assertiveness_score: how confident and direct the user communicated (0-100).
+(Note: For vocabulary_saved, ALWAYS extract at least 1-3 useful or interesting vocabulary words from the session to help the user learn. Even for short sessions, pick out foundational words to review.)"""
     
     transcript_text = "\\n".join([f"{msg.role.capitalize()}: {msg.content}" for msg in actual_transcript])
     messages = [
@@ -197,7 +206,14 @@ Required JSON format:
             "filler_count": data.get("filler_count", 0),
             "wpm": data.get("wpm", 130),
             "feedback_items": data.get("feedback_items", [{"type": "success", "text": "Session Complete", "fix": "Great practice!"}]),
-            "vocabulary_saved": data.get("vocabulary_saved", [])[:3], # Cap at 3 words to avoid overwhelming Spaced Repetition
+            "vocabulary_saved": data.get("vocabulary_saved", [])[:3],
+            "patterns_meta": {
+                "filler_rate": data.get("filler_rate", 0.0),
+                "upspeak_count": data.get("upspeak_count", 0),
+                "sentence_completion_rate": data.get("sentence_completion_rate", 85),
+                "hesitation_pattern": data.get("hesitation_pattern", "General"),
+                "assertiveness_score": data.get("assertiveness_score", data.get("confidence_score", 60)),
+            },
         }
     except Exception as e:
         print(f"[ERROR] Groq json parse failure: {e}")

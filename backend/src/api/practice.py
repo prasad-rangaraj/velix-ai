@@ -41,6 +41,7 @@ class CompleteSessionReq(BaseModel):
     wpm: Optional[int] = None
     feedback_items: list = []
     vocabulary_saved: list = []
+    patterns_meta: Optional[dict] = None
 
 class TurnReq(BaseModel):
     speaker: str
@@ -99,6 +100,7 @@ async def complete_session(
         prev_confidence=int(user.skill_confidence),
         filler_count=req.filler_count, wpm=req.wpm,
         feedback_items=req.feedback_items, vocabulary_saved=req.vocabulary_saved,
+        patterns_meta=req.patterns_meta,
     )
     db.add(report)
 
